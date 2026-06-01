@@ -16,6 +16,14 @@ async def init_db():
         """)
         await db.commit()
 
+async def add_user(user_id: int, username: str):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "INSERT OR IGNORE INTO users (user_id, username) VALUES (?, ?)",
+            (user_id, username)
+        )
+        await db.commit()
+
 async def save_message(msg_id: int, user_id: int, username: str, full_name: str):
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
@@ -28,3 +36,30 @@ async def get_author(msg_id: int):
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute("SELECT user_id, username, full_name FROM messages WHERE msg_id = ?", (msg_id,)) as cursor:
             return await cursor.fetchone()
+
+async def create_ban_table():
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS banned_users (
+                user_id INTEGER PRIMARY KEY,
+                ban_reason TEXT,
+                banned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        await db.commit()
+
+async def is_user_banned(user_id: int) -> bool:
+    async with aiosqlite.connect("bot.db") as db:
+        async with db.execute("SELECT 1 FROM banned_users WHERE user_id = ?", (user_id,)) as cursor:
+            return await cursor.fetchone() is not None
+
+# Функция для добавления пользователя в бан (для админа)
+async def ban_user(user_id: int, reason: str = "Нарушение правил"):
+    async with aiosqlite.connect("bot.db") as db:
+        await db.execute(
+            "INSERT OR IGNORE INTO banned_users (user_id, ban_reason) VALUES (?, ?)",
+            (user_id, reason)
+        )
+        await db.commit()

@@ -1,38 +1,32 @@
 import asyncio
 import logging
 from aiogram import Bot, Dispatcher
-from aiogram.fsm.storage.memory import MemoryStorage
-
-import config
-import database as db
+from config import BOT_TOKEN
+from database import init_db
 from handlers.user import user_router
-from handlers.payments import payments_router
 from handlers.admin import admin_router
+from middlewares.blacklist import BlacklistMiddleware
+from middlewares.subscription import SubscriptionMiddleware
 
-# Настройка логирования
 logging.basicConfig(level=logging.INFO)
 
 
 async def main():
-    # Инициализация базы данных
-    await db.init_db()
+    await init_db()
 
-    # Инициализация бота и диспетчера
-    bot = Bot(token=config.BOT_TOKEN)
-    dp = Dispatcher(storage=MemoryStorage())
+    bot = Bot(token=BOT_TOKEN)
+    dp = Dispatcher()
 
-    # Регистрируем роутеры в строгом порядке
-    dp.include_router(admin_router)
+    # Регистрация проверок
+    dp.message.middleware(BlacklistMiddleware())
+    dp.message.middleware(SubscriptionMiddleware())
+
+    # Подключение роутеров
     dp.include_router(user_router)
-    dp.include_router(payments_router)
+    dp.include_router(admin_router)
 
-
-    print("🤖 Бот успешно запущен и готов к работе!")
-
-    try:
-        await dp.start_polling(bot)
-    finally:
-        await bot.session.close()
+    print("Бот успешно запущен и готов к работе!")
+    await dp.start_polling(bot)
 
 
 if __name__ == "__main__":
