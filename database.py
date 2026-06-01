@@ -63,3 +63,14 @@ async def ban_user(user_id: int, reason: str = "Нарушение правил"
             (user_id, reason)
         )
         await db.commit()
+
+# Добавьте в самый конец файла database.py
+
+async def get_user_from_db(user_id: int):
+    async with aiosqlite.connect(DB_NAME) as db:
+        async with db.execute("SELECT username FROM users WHERE user_id = ?", (user_id,)) as cursor:
+            row = await cursor.fetchone()
+            if row:
+                return row[0]  # Возвращает username (строку)
+            return None
+
